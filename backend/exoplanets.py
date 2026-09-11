@@ -27,7 +27,7 @@ FEATURED_SYSTEMS = [
     "TOI-700", "Kepler-62", "HD 40307", "GJ 667 C",
 ]
 
-ARCHIVE_PATH = Path(__file__).resolve().parent.parent / "main_data.csv"
+ARCHIVE_PATH = Path(__file__).resolve().parent / "main_data.csv"
 _ARCHIVE_SYSTEMS: Optional[dict[str, dict]] = None
 
 
