@@ -20,8 +20,6 @@ TAP_BASE = "https://exoplanetarchive.ipac.caltech.edu/TAP/sync"
 
 EARTH_MEAN_SURFACE_TEMP_K = 288.0
 
-# A handful of well-known, genuinely interesting systems to offer as
-# quick-start options rather than making a hobbyist guess a hostname cold.
 FEATURED_SYSTEMS = [
     "TRAPPIST-1", "Kepler-186", "Kepler-442", "Proxima Cen",
     "TOI-700", "Kepler-62", "HD 40307", "GJ 667 C",
@@ -69,7 +67,7 @@ def compute_esi(radius_earth: Optional[float], mass_earth: Optional[float], eq_t
         esi_temp = esi_component(eq_temp_k, EARTH_MEAN_SURFACE_TEMP_K, 5.58)
         esi_surface = (esi_escvel * esi_temp) ** 0.5
     else:
-        esi_surface = esi_escvel  # no temperature data — degrade gracefully rather than failing
+        esi_surface = esi_escvel  # no temperature data , degrade gracefully rather than failing
 
     return round((esi_interior * esi_surface) ** 0.5, 3)
 
