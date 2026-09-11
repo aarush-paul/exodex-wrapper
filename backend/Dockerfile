@@ -4,6 +4,7 @@ WORKDIR /app
 
 # Install deps first so this layer caches independently of code changes
 COPY requirements.txt .
+COPY main_data.csv .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY main.py solar_system.py exoplanets.py .
