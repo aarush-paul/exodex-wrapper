@@ -296,6 +296,11 @@
     font-family:var(--mono); font-size:12px; padding:9px 10px; border-radius:4px;
   }
   #exo-featured-row{ display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+  #exo-catalog-select{
+    width:100%; margin-top:10px; background:#0a1220; border:1px solid var(--panel-border); color:var(--text);
+    font-family:var(--mono); font-size:10px; padding:8px; border-radius:4px;
+  }
+  #exo-catalog-stats{ margin-top:8px; font-family:var(--mono); font-size:9px; color:var(--muted); line-height:1.5; }
   .exo-chip{
     background:#0a1220; border:1px solid var(--panel-border); color:var(--muted);
     font-family:var(--mono); font-size:9px; padding:6px 8px; border-radius:12px; cursor:pointer;
@@ -551,6 +556,10 @@
   <div class="window-handle panel-label" style="margin-bottom:6px;">EXOPLANET SYSTEMS <button class="collapse-toggle">–</button></div>
   <div class="panel-body">
   <input id="exo-search-input" type="text" placeholder="Search a star name…" autocomplete="off">
+  <select id="exo-catalog-select" aria-label="Select a system from the full exoplanet catalog">
+    <option value="">SELECT FROM FULL CATALOG</option>
+  </select>
+  <div id="exo-catalog-stats">Loading bundled NASA catalog…</div>
   <div id="exo-featured-row"></div>
   <div id="exo-results"></div>
   <div id="exo-current-star">No system loaded yet.</div>
@@ -2210,12 +2219,25 @@ document.getElementById('exo-info-close').addEventListener('click', deselectExop
 // featured system chips + search
 async function loadFeaturedSystems(){
   const row = document.getElementById('exo-featured-row');
+  const catalog = document.getElementById('exo-catalog-select');
+  const stats = document.getElementById('exo-catalog-stats');
   try{
     const res = await fetch(`${API_BASE}/api/exoplanets/featured`);
     if(!res.ok) throw new Error(`HTTP ${res.status} — is exoplanets.py present in backend/ and did the server restart?`);
     const data = await res.json();
     if(!data || !Array.isArray(data.systems)) throw new Error('Backend responded but returned no systems list.');
-    row.innerHTML = data.systems.map(s => `<span class="exo-chip" data-name="${s}">${s}</span>`).join('');
+    const systems = Array.isArray(data.systems) ? data.systems : [];
+    const featured = Array.isArray(data.featured) ? data.featured : [];
+    catalog.innerHTML = '<option value="">SELECT FROM FULL CATALOG</option>' + systems.map(system =>
+      `<option value="${system.hostname}">${system.hostname} · ${system.planet_count} planet${system.planet_count === 1 ? '' : 's'}</option>`
+    ).join('');
+    catalog.addEventListener('change', () => {
+      if(catalog.value) loadExoSystem(catalog.value);
+    });
+    if(data.stats){
+      stats.textContent = `${data.stats.systems.toLocaleString()} systems · ${data.stats.planets.toLocaleString()} canonical planets · ${data.stats.source}`;
+    }
+    row.innerHTML = featured.map(s => `<span class="exo-chip" data-name="${s}">${s}</span>`).join('');
     row.querySelectorAll('.exo-chip').forEach(chip => {
       chip.addEventListener('click', () => loadExoSystem(chip.dataset.name));
     });

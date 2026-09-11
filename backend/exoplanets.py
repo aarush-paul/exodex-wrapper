@@ -12,6 +12,8 @@ Earth's own values. Swapping in a different formula later just means
 replacing `compute_esi()` — nothing else downstream needs to change.
 """
 
+import csv
+from pathlib import Path
 from typing import Optional
 
 import requests
@@ -24,6 +26,87 @@ FEATURED_SYSTEMS = [
     "TRAPPIST-1", "Kepler-186", "Kepler-442", "Proxima Cen",
     "TOI-700", "Kepler-62", "HD 40307", "GJ 667 C",
 ]
+
+ARCHIVE_PATH = Path(__file__).resolve().parent.parent / "main_data.csv"
+_ARCHIVE_SYSTEMS: Optional[dict[str, dict]] = None
+
+
+def _number(value):
+    try:
+        return float(value) if value not in (None, "") else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _archive_planet(row: dict, star: dict) -> dict:
+    a_au = _number(row.get("pl_orbsmax"))
+    period_days = _number(row.get("pl_orbper"))
+    if a_au is None and period_days and star["mass_solar"]:
+        a_au = (star["mass_solar"] * (period_days / 365.25) ** 2) ** (1 / 3)
+    if period_days is None and a_au and star["mass_solar"]:
+        period_days = 365.25 * (a_au ** 3 / star["mass_solar"]) ** 0.5
+    radius_earth = _number(row.get("pl_rade"))
+    mass_earth = _number(row.get("pl_bmasse"))
+    eq_temp = _number(row.get("pl_eqt"))
+    estimated = False
+    if eq_temp is None:
+        eq_temp = estimate_eq_temp_k(star["teff_k"], star["radius_solar"], a_au)
+        estimated = eq_temp is not None
+    return {
+        "name": row.get("pl_name"),
+        "a_au": a_au,
+        "e": _number(row.get("pl_orbeccen")) or 0.0,
+        "i_deg": _number(row.get("pl_orbincl")),
+        "period_days": period_days,
+        "radius_earth": radius_earth,
+        "mass_earth": mass_earth,
+        "eq_temp_k": eq_temp,
+        "eq_temp_estimated": estimated,
+        "esi": compute_esi(radius_earth, mass_earth, eq_temp),
+        "planet_type": classify_planet_type(radius_earth, mass_earth),
+    }
+
+
+def _load_archive() -> dict[str, dict]:
+    """Load the bundled NASA archive once, retaining its canonical rows."""
+    global _ARCHIVE_SYSTEMS
+    if _ARCHIVE_SYSTEMS is not None:
+        return _ARCHIVE_SYSTEMS
+    systems = {}
+    with ARCHIVE_PATH.open(newline="", encoding="utf-8") as handle:
+        rows = (line for line in handle if not line.startswith("#") and line.strip())
+        for row in csv.DictReader(rows):
+            if row.get("default_flag") != "1" or not row.get("hostname"):
+                continue
+            hostname = row["hostname"]
+            system = systems.setdefault(hostname, {
+                "hostname": hostname,
+                "star": {
+                    "teff_k": _number(row.get("st_teff")),
+                    "radius_solar": _number(row.get("st_rad")),
+                    "mass_solar": _number(row.get("st_mass")),
+                    "spectral_type": row.get("st_spectype") or None,
+                    "distance_pc": _number(row.get("sy_dist")),
+                },
+                "planets": [],
+            })
+            planet = _archive_planet(row, system["star"])
+            if planet["name"]:
+                system["planets"].append(planet)
+
+    for system in systems.values():
+        system["planets"].sort(key=lambda planet: planet["a_au"] if planet["a_au"] is not None else float("inf"))
+        system["habitable_zone_au"] = habitable_zone_au(
+            system["star"]["teff_k"], system["star"]["radius_solar"]
+        )
+        for planet in system["planets"]:
+            a_au = planet["a_au"]
+            planet["in_habitable_zone"] = (
+                None if system["habitable_zone_au"] is None or a_au is None else
+                system["habitable_zone_au"]["inner_au"] <= a_au <= system["habitable_zone_au"]["outer_au"]
+            )
+    _ARCHIVE_SYSTEMS = systems
+    return systems
 
 
 def _tap_query(adql: str, fmt: str = "json") -> list:
@@ -134,6 +217,10 @@ def estimate_eq_temp_k(star_teff: Optional[float], star_radius_solar: Optional[f
 
 
 def get_system(hostname: str) -> dict:
+    archive = _load_archive()
+    if hostname in archive:
+        return {**archive[hostname], "found": True}
+
     hostname_escaped = hostname.replace("'", "''")
     cols = (
         "pl_name,pl_orbsmax,pl_orbeccen,pl_orbincl,pl_orbper,"
@@ -205,4 +292,30 @@ def get_system(hostname: str) -> dict:
         "star": star,
         "habitable_zone_au": hz,
         "planets": planets,
+    }
+
+
+def catalog_systems(query: str = "", limit: int = 100) -> list[dict]:
+    needle = query.casefold().strip()
+    matches = [
+        system for system in _load_archive().values()
+        if needle in system["hostname"].casefold()
+    ]
+    matches.sort(key=lambda system: system["hostname"].casefold())
+    return [
+        {
+            "hostname": system["hostname"],
+            "planet_count": len(system["planets"]),
+            "distance_pc": system["star"]["distance_pc"],
+        }
+        for system in matches[:limit]
+    ]
+
+
+def archive_stats() -> dict:
+    systems = _load_archive()
+    return {
+        "systems": len(systems),
+        "planets": sum(len(system["planets"]) for system in systems.values()),
+        "source": ARCHIVE_PATH.name,
     }

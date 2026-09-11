@@ -20,7 +20,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from skyfield.api import EarthSatellite, Loader, load, wgs84
 
 from solar_system import MOONS, PLANETS, SUN
-from exoplanets import FEATURED_SYSTEMS, get_system, search_hostnames
+from exoplanets import archive_stats, catalog_systems, get_system
 
 app = FastAPI(title="SSA Dashboard API")
 
@@ -427,17 +427,17 @@ def solar_system():
 
 @app.get("/api/exoplanets/featured")
 def exoplanets_featured():
-    """A curated list of well-known systems, so a hobbyist has somewhere to start."""
-    return {"systems": FEATURED_SYSTEMS}
+    """Return the full bundled catalog plus recognizable starting systems."""
+    return {
+        "systems": catalog_systems(limit=5000),
+        "featured": ["TRAPPIST-1", "Kepler-186", "Kepler-442", "Proxima Cen", "TOI-700", "Kepler-62"],
+        "stats": archive_stats(),
+    }
 
 
 @app.get("/api/exoplanets/search")
 def exoplanets_search(q: str = Query(..., min_length=2), limit: int = Query(15, le=50)):
-    try:
-        names = search_hostnames(q, limit)
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Exoplanet Archive search failed: {e}")
-    return {"query": q, "hostnames": names}
+    return {"query": q, "hostnames": [system["hostname"] for system in catalog_systems(q, limit)]}
 
 
 @app.get("/api/exoplanets/system")
