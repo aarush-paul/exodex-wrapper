@@ -12,7 +12,7 @@ services:
     # after inactivity ever becomes annoying.
 
   - type: web
-    name: ssa-frontend
+    name: ExoDex
     runtime: docker
     dockerfilePath: ./frontend/Dockerfile
     dockerContext: ./frontend
