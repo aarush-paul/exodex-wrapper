@@ -51,25 +51,6 @@ uvicorn main:app --reload --port 8000
 ```
 Then open `frontend/index.html` directly in a browser.
 
----
-
-## Project structure
-
-```
-orbital-watch/
-├── backend/
-│   ├── main.py            # FastAPI app — satellites, collisions, passes
-│   ├── solar_system.py    # Planetary/lunar orbital elements
-│   ├── exoplanets.py      # Exoplanet Archive queries + ESI scoring
-│   └── requirements.txt
-├── frontend/
-│   └── index.html         # Full 3D dashboard (Three.js)
-├── docker-compose.yml
-└── render.yaml             # Render deployment blueprint
-```
-
----
-
 ## Data sources
 
 [CelesTrak](https://celestrak.org) (satellite TLEs) · [NASA Exoplanet Archive](https://exoplanetarchive.ipac.caltech.edu) · [NASA NeoWs](https://api.nasa.gov) · [NOAA SWPC](https://www.swpc.noaa.gov) · [Launch Library 2](https://thespacedevs.com) · [Skyfield](https://rhodesmill.org/skyfield/) for orbital propagation
