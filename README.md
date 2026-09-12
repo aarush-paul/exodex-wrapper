@@ -1,4 +1,4 @@
-# Orbital Watch
+# ExoDex 
 
 A full-stack space situational awareness platform: live satellite tracking, real solar system mechanics, and exoplanet habitability analysis, all in one 3D dashboard.
 
@@ -36,8 +36,8 @@ A full-stack space situational awareness platform: live satellite tracking, real
 ## Running it locally
 
 ```bash
-git clone https://github.com/skillissueguykagit/orbital-watch.git
-cd orbital-watch
+git clone https://github.com/aarush-paul/exodex-wrapper.git
+cd exodex-wrapper
 docker compose up --build
 ```
 Open `http://localhost:8080`.
